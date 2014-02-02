@@ -9,6 +9,7 @@ import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.action.admin.cluster.node.stats.NodeStats;
 import org.elasticsearch.action.admin.indices.stats.CommonStatsFlags;
 import org.elasticsearch.client.Client;
@@ -124,7 +125,16 @@ public class CloudwatchPluginService extends AbstractLifecycleComponent<Cloudwat
 						data.add(clusterDatum(now, "RelocatingShards", (double) healthResponse.getRelocatingShards()));
 						data.add(clusterDatum(now, "InitializingShards", (double) healthResponse.getInitializingShards()));
 						data.add(clusterDatum(now, "UnassignedShards", (double) healthResponse.getUnassignedShards()));
-						
+
+                        data.add(clusterDatum(now, "ClusterGreen",
+                                healthResponse.getStatus() == ClusterHealthStatus.GREEN ? 1.0 : 0.0));
+
+                        data.add(clusterDatum(now, "ClusterYellow",
+                                healthResponse.getStatus() == ClusterHealthStatus.YELLOW ? 1.0 : 0.0));
+
+                        data.add(clusterDatum(now, "ClusterRed",
+                                healthResponse.getStatus() == ClusterHealthStatus.RED ? 1.0 : 0.0));
+
 						request.setMetricData(data);
 						cloudwatch.putMetricData(request);
 						
