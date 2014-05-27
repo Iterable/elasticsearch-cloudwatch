@@ -126,12 +126,12 @@ public class CloudwatchPluginService extends AbstractLifecycleComponent<Cloudwat
 						data.add(clusterDatum(now, "InitializingShards", (double) healthResponse.getInitializingShards()));
 						data.add(clusterDatum(now, "UnassignedShards", (double) healthResponse.getUnassignedShards()));
 
-                                                data.add(clusterDatum(now, "ClusterGreen", healthResponse.getStatus() == ClusterHealthStatus.GREEN ? 1.0 : 0.0));
-                                                data.add(clusterDatum(now, "ClusterYellow", healthResponse.getStatus() == ClusterHealthStatus.YELLOW ? 1.0 : 0.0));
-                                                data.add(clusterDatum(now, "ClusterRed", healthResponse.getStatus() == ClusterHealthStatus.RED ? 1.0 : 0.0));
+                        data.add(clusterDatum(now, "ClusterGreen", healthResponse.getStatus() == ClusterHealthStatus.GREEN ? 1.0 : 0.0));
+                        data.add(clusterDatum(now, "ClusterYellow", healthResponse.getStatus() == ClusterHealthStatus.YELLOW ? 1.0 : 0.0));
+                        data.add(clusterDatum(now, "ClusterRed", healthResponse.getStatus() == ClusterHealthStatus.RED ? 1.0 : 0.0));
 
-                                                request.setMetricData(data);
-                                                cloudwatch.putMetricData(request);
+                        request.setMetricData(data);
+                        cloudwatch.putMetricData(request);
 						
 					}
 					
@@ -154,6 +154,10 @@ public class CloudwatchPluginService extends AbstractLifecycleComponent<Cloudwat
 	    			sendJVMStats(now, nodeStats, nodeAddress);
 
 	    			sendDocsStats(now, nodeAddress, nodeIndicesStats);
+
+                    sendLatencyStats(now, nodeAddress, nodeIndicesStats);
+
+                    sendCacheStats(now, nodeAddress, nodeIndicesStats);
 
 	    			if (indexStatsEnabled) {
 	                    sendIndexStats(now, nodeAddress);
@@ -184,6 +188,62 @@ public class CloudwatchPluginService extends AbstractLifecycleComponent<Cloudwat
 				docsData.add(nodeDatum(now, nodeAddress, "DocsCount", count, StandardUnit.Count));
 				docsData.add(nodeDatum(now, nodeAddress, "DocsDeleted", deleted, StandardUnit.Count));
 				
+				request.setMetricData(docsData);
+				cloudwatch.putMetricData(request);
+    		} catch (AmazonClientException e) {
+    			logger.error("Exception thrown by amazon while sending DocsStats", e);
+    		}
+		}
+
+        private void sendCacheStats(final Date now, String nodeAddress, NodeIndicesStats nodeIndicesStats) {
+            try {
+                PutMetricDataRequest request = new PutMetricDataRequest();
+                request.setNamespace("9apps/Elasticsearch");
+                List<MetricDatum> docsData = Lists.newArrayList();
+
+                docsData.add(nodeDatum(now, nodeAddress, "FieldCacheSize", nodeIndicesStats.getFieldData().getMemorySizeInBytes(), StandardUnit.Bytes));
+                docsData.add(nodeDatum(now, nodeAddress, "FieldCacheEvictions", nodeIndicesStats.getFieldData().getEvictions(), StandardUnit.Count));
+
+                docsData.add(nodeDatum(now, nodeAddress, "FilterCacheSize", nodeIndicesStats.getFilterCache().getMemorySizeInBytes(), StandardUnit.Bytes));
+                docsData.add(nodeDatum(now, nodeAddress, "FilterCacheEvictions", nodeIndicesStats.getFilterCache().getEvictions(), StandardUnit.Count));
+
+                docsData.add(nodeDatum(now, nodeAddress, "IdCacheSize", nodeIndicesStats.getIdCache().getMemorySizeInBytes(), StandardUnit.Bytes));
+
+                request.setMetricData(docsData);
+                cloudwatch.putMetricData(request);
+            } catch (AmazonClientException e) {
+                logger.error("Exception thrown by amazon while sending DocsStats", e);
+            }
+        }
+
+
+        private void sendLatencyStats(final Date now, String nodeAddress, NodeIndicesStats nodeIndicesStats) {
+			try {
+				PutMetricDataRequest request = new PutMetricDataRequest();
+				request.setNamespace("9apps/Elasticsearch");
+				List<MetricDatum> docsData = Lists.newArrayList();
+
+                long indexTimeInMillis = nodeIndicesStats.getIndexing().getTotal().getIndexTimeInMillis();
+				docsData.add(nodeDatum(now, nodeAddress, "IndexLatency", indexTimeInMillis, StandardUnit.Milliseconds));
+
+                long deleteTimeInMillis = nodeIndicesStats.getIndexing().getTotal().getDeleteTimeInMillis();
+                docsData.add(nodeDatum(now, nodeAddress, "DeleteLatency", deleteTimeInMillis, StandardUnit.Milliseconds));
+
+                long queryTimeInMillis = nodeIndicesStats.getSearch().getTotal().getQueryTimeInMillis();
+                docsData.add(nodeDatum(now, nodeAddress, "QueryLatency", queryTimeInMillis, StandardUnit.Milliseconds));
+
+                long fetchTimeInMillis = nodeIndicesStats.getSearch().getTotal().getFetchTimeInMillis();
+                docsData.add(nodeDatum(now, nodeAddress, "FetchLatency", fetchTimeInMillis, StandardUnit.Milliseconds));
+
+                long getLatency = nodeIndicesStats.getGet().getTimeInMillis();
+                docsData.add(nodeDatum(now, nodeAddress, "GetLatency", getLatency, StandardUnit.Milliseconds));
+
+                long refreshLatency = nodeIndicesStats.getRefresh().getTotalTimeInMillis();
+                docsData.add(nodeDatum(now, nodeAddress, "RefreshLatency", refreshLatency, StandardUnit.Milliseconds));
+
+                long flushLatency = nodeIndicesStats.getFlush().getTotalTimeInMillis();
+                docsData.add(nodeDatum(now, nodeAddress, "FlushLatency", flushLatency, StandardUnit.Milliseconds));
+
 				request.setMetricData(docsData);
 				cloudwatch.putMetricData(request);
     		} catch (AmazonClientException e) {
