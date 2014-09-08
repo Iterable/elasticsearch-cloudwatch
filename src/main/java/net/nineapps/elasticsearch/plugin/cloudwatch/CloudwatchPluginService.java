@@ -421,7 +421,7 @@ public class CloudwatchPluginService extends AbstractLifecycleComponent<Cloudwat
 
     private List<IndexShard> getIndexShards(IndicesService indicesService) {
         List<IndexShard> indexShards = Lists.newArrayList();
-        String[] indices = indicesService.indices().toArray(new String[]{});
+        String[] indices = indicesService.indices().keySet().toArray(new String[]{});
         for (String indexName : indices) {
             IndexService indexService = indicesService.indexServiceSafe(indexName);
             for (int shardId : indexService.shardIds()) {
